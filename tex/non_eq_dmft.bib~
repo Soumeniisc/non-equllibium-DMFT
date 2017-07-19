@@ -1,0 +1,176 @@
+@article{HUB_para,
+  title = {Thermalization after an Interaction Quench in the Hubbard Model},
+  author = {Eckstein, Martin and Kollar, Marcus and Werner, Philipp},
+  journal = {Phys. Rev. Lett.},
+  volume = {103},
+  issue = {5},
+  pages = {056403},
+  numpages = {4},
+  year = {2009},
+  month = {Jul},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevLett.103.056403},
+  url = {http://link.aps.org/doi/10.1103/PhysRevLett.103.056403}
+}
+
+@article{RMP,
+  title = {Nonequilibrium dynamical mean-field theory and its applications},
+  author = {Aoki, Hideo and Tsuji, Naoto and Eckstein, Martin and Kollar, Marcus and Oka, Takashi and Werner, Philipp},
+  journal = {Rev. Mod. Phys.},
+  volume = {86},
+  issue = {2},
+  pages = {779--837},
+  numpages = {59},
+  year = {2014},
+  month = {Jun},
+  publisher = {American Physical Society},
+  doi = {10.1103/RevModPhys.86.779},
+  url = {http://link.aps.org/doi/10.1103/RevModPhys.86.779}
+}
+
+@article{HUB,
+  title = {Nonequilibrium dynamical mean-field theory based on weak-coupling perturbation expansions: Application to dynamical symmetry breaking in the Hubbard model},
+  author = {Tsuji, Naoto and Werner, Philipp},
+  journal = {Phys. Rev. B},
+  volume = {88},
+  issue = {16},
+  pages = {165115},
+  numpages = {28},
+  year = {2013},
+  month = {Oct},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevB.88.165115},
+  url = {http://link.aps.org/doi/10.1103/PhysRevB.88.165115}
+}
+
+
+
+@article{soumen,
+  title = {Phase diagram of the half-filled ionic Hubbard model},
+  author = {Bag, Soumen and Garg, Arti and Krishnamurthy, H. R.},
+  journal = {Phys. Rev. B},
+  volume = {91},
+  issue = {23},
+  pages = {235108},
+  numpages = {13},
+  year = {2015},
+  month = {Jun},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevB.91.235108},
+  url = {http://link.aps.org/doi/10.1103/PhysRevB.91.235108}
+}
+
+
+@article{ArtiHM,
+  title = {Doping a Correlated Band Insulator: A New Route to Half-Metallic Behavior},
+  author = {Garg, Arti and Krishnamurthy, H. R. and Randeria, Mohit},
+  journal = {Phys. Rev. Lett.},
+  volume = {112},
+  issue = {10},
+  pages = {106406},
+  numpages = {5},
+  year = {2014},
+  month = {Mar},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevLett.112.106406},
+  url = {http://link.aps.org/doi/10.1103/PhysRevLett.112.106406}
+}
+
+@article{HUB_AFM,
+  title = {Nonthermal Antiferromagnetic Order and Nonequilibrium Criticality in the Hubbard Model},
+  author = {Tsuji, Naoto and Eckstein, Martin and Werner, Philipp},
+  journal = {Phys. Rev. Lett.},
+  volume = {110},
+  issue = {13},
+  pages = {136404},
+  numpages = {5},
+  year = {2013},
+  month = {Mar},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevLett.110.136404},
+  url = {http://link.aps.org/doi/10.1103/PhysRevLett.110.136404}
+}
+
+
+@article{squareprl,
+  title = {Quantum Monte Carlo Study of an Interaction-Driven Band-Insulator\char21{}to\char21{}Metal Transition},
+  author = {Paris, N. and Bouadim, K. and Hebert, F. and Batrouni, G. G. and Scalettar, R. T.},
+  journal = {Phys. Rev. Lett.},
+  volume = {98},
+  issue = {4},
+  pages = {046403},
+  numpages = {4},
+  year = {2007},
+  month = {Jan},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevLett.98.046403},
+  url = {http://link.aps.org/doi/10.1103/PhysRevLett.98.046403}
+}
+
+% this is where for IHM BI(PM) to Metal(PM) to Mott insulator transition si shown using G(beta/2) for bethe lattice
+@article{paraIHM,
+  title = {Finite-temperature phase transitions in the ionic Hubbard model},
+  author = {Kim, Aaram J. and Choi, M. Y. and Jeon, Gun Sang},
+  journal = {Phys. Rev. B},
+  volume = {89},
+  issue = {16},
+  pages = {165117},
+  numpages = {8},
+  year = {2014},
+  month = {Apr},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevB.89.165117},
+  url = {http://link.aps.org/doi/10.1103/PhysRevB.89.165117}
+}
+
+%Correlated Insulated Phase Suggests Bond Order between Band and Mott Insulators in Two Dimensions IHM
+@article{Dagotto,
+  title = {Correlated Insulated Phase Suggests Bond Order between Band and Mott Insulators in Two Dimensions},
+  author = {Kancharla, S. S. and Dagotto, E.},
+  journal = {Phys. Rev. Lett.},
+  volume = {98},
+  issue = {1},
+  pages = {016402},
+  numpages = {4},
+  year = {2007},
+  month = {Jan},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevLett.98.016402},
+  url = {http://link.aps.org/doi/10.1103/PhysRevLett.98.016402}
+}
+
+@article{Scalettar,
+  title = {Metallic phase in the two-dimensional ionic Hubbard model},
+  author = {Bouadim, K. and Paris, N. and H\'ebert, F. and Batrouni, G. G. and Scalettar, R. T.},
+  journal = {Phys. Rev. B},
+  volume = {76},
+  issue = {8},
+  pages = {085112},
+  numpages = {8},
+  year = {2007},
+  month = {Aug},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevB.76.085112},
+  url = {http://link.aps.org/doi/10.1103/PhysRevB.76.085112}
+}
+
+@article{Byczuk,
+  title = {Insulating behavior with spin and charge order in the ionic Hubbard model},
+  author = {Byczuk, Krzysztof and Sekania, Michael and Hofstetter, Walter and Kampf, Arno P.},
+  journal = {Phys. Rev. B},
+  volume = {79},
+  issue = {12},
+  pages = {121103},
+  numpages = {4},
+  year = {2009},
+  month = {Mar},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevB.79.121103},
+  url = {http://link.aps.org/doi/10.1103/PhysRevB.79.121103}
+}
+
+
+
+
+
+

@@ -1,0 +1,120 @@
+!----------------------------------------------------------------------------
+!
+!  author: Naoto Tsuji <tsuji@cms.phys.s.u-tokyo.ac.jp>
+!
+!          Department of Physics, University of Tokyo
+!
+!  date:   February 28, 2013
+!
+!----------------------------------------------------------------------------
+module IPT_MOD
+  
+  use CONST_MOD
+  use PARM_MOD
+  use DMFT_MOD
+  use GREEN_MOD
+  use FFT_MOD
+  implicit none
+  
+  private
+  public :: eq_iptA,                     &
+            eq_iptB
+  
+contains
+  
+  subroutine eq_iptA(parm_,dmft_)
+    type(parm), intent(in)       :: parm_
+    type(dmft), intent(inout)    :: dmft_
+    integer                      :: i, j
+    double precision             :: w, tau
+    
+    ! second-order perturbation in U at half filling
+    ! self_energy(t) = -U(0-)*U(0-)*G0(t)*G0(-t)*G0(t)
+    do i=1, parm_%N_tau+1
+       dmft_%self_energyA%matsubara_t(i)=parm_%U_i**2*dmft_%weiss_greenA%matsubara_t(i)*dmft_%weiss_greenA%matsubara_t(parm_%N_tau-i+2)*dmft_%weiss_greenA%matsubara_t(i)  
+    end do
+    
+    ! Fourier transformation
+    ! self_energy(t) -> self_energy(w)
+    call fft_t2w(parm_,dmft_%self_energyA%matsubara_t,dmft_%self_energyA%matsubara_w)
+
+     do i=1, parm_%N_tau
+       dmft_%self_energyA%matsubara_w(i)=dmft_%self_energyA%matsubara_w(i) + parm_%U_i*dmft_%nA ! U*n_A
+    end do
+ 
+     do i=1, parm_%N_tau
+       dmft_%weiss_greenA%matsubara_w(i)=dmft_%weiss_greenA%matsubara_w(i)/(1.0 + parm_%U_i*dmft_%nA*dmft_%weiss_greenA%matsubara_w(i)) ! U*n_A
+    end do
+
+    ! solve the impurity Dyson equation
+    ! G(w)=[G0(w)^{-1}-self_energy(w)]^{-1}
+    do j=1, parm_%N_tau
+       dmft_%local_greenA%matsubara_w(j)=dmft_%weiss_greenA%matsubara_w(j)/(1.d0 - dmft_%weiss_greenA%matsubara_w(j)*dmft_%self_energyA%matsubara_w(j))
+     
+    end do
+     do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_greenA%matsubara_w(j)=dmft_%local_greenA%matsubara_w(j)-1.d0/(xj*w)-(parm_%e2)/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%local_greenA%matsubara_w,dmft_%local_greenA%matsubara_t)
+    do i=1, parm_%N_tau+1
+       tau=dble(i-1)*parm_%dtau
+       dmft_%local_greenA%matsubara_t(i)=dmft_%local_greenA%matsubara_t(i)-0.5d0+0.25d0*(parm_%e2)*tau*(parm_%beta-tau)
+    end do
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_greenA%matsubara_w(j)=dmft_%local_greenA%matsubara_w(j)+1.d0/(xj*w)+(parm_%e2)/(xj*w)/(xj*w)/(xj*w)
+    end do
+    print*, "before solver A nA", dmft_%nA
+    dmft_%nA = -dmft_%local_greenA%matsubara_t(parm_%N_tau+1)
+    print*, "after solver A nA", dmft_%nA
+  end subroutine eq_iptA
+
+  subroutine eq_iptB(parm_,dmft_)
+    type(parm), intent(in)       :: parm_
+    type(dmft), intent(inout)    :: dmft_
+    integer                      :: i, j
+    double precision             :: w, tau
+    
+    ! second-order perturbation in U at half filling
+    ! self_energy(t) = -U(0-)*U(0-)*G0(t)*G0(-t)*G0(t)
+    do i=1, parm_%N_tau+1
+       dmft_%self_energyB%matsubara_t(i)=parm_%U_i**2*dmft_%weiss_greenB%matsubara_t(i)*dmft_%weiss_greenB%matsubara_t(parm_%N_tau-i+2)*dmft_%weiss_greenB%matsubara_t(i)  ! U*n_B
+    end do
+    
+    ! Fourier transformation
+    ! self_energy(t) -> self_energy(w)
+    call fft_t2w(parm_,dmft_%self_energyB%matsubara_t,dmft_%self_energyB%matsubara_w)
+
+     do i=1, parm_%N_tau
+       dmft_%self_energyB%matsubara_w(i)=dmft_%self_energyB%matsubara_w(i) + parm_%U_i*dmft_%nB ! U*n_A
+    end do
+ 
+     do i=1, parm_%N_tau
+       dmft_%weiss_greenB%matsubara_w(i)=dmft_%weiss_greenB%matsubara_w(i)/(1.0 + parm_%U_i*dmft_%nB*dmft_%weiss_greenB%matsubara_w(i)) ! U*n_A
+    end do
+
+    ! solve the impurity Dyson equation
+    ! G(w)=[G0(w)^{-1}-self_energy(w)]^{-1}
+    do j=1, parm_%N_tau
+       dmft_%local_greenB%matsubara_w(j)=dmft_%weiss_greenB%matsubara_w(j)/(1.d0  - dmft_%weiss_greenB%matsubara_w(j)*dmft_%self_energyB%matsubara_w(j))
+    end do
+    
+     ! doing fourier transform
+     do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_greenB%matsubara_w(j)=dmft_%local_greenB%matsubara_w(j)-1.d0/(xj*w)-(parm_%e2)/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%local_greenB%matsubara_w,dmft_%local_greenB%matsubara_t)
+    do i=1, parm_%N_tau+1
+       tau=dble(i-1)*parm_%dtau
+       dmft_%local_greenB%matsubara_t(i)=dmft_%local_greenB%matsubara_t(i)-0.5d0+0.25d0*(parm_%e2)*tau*(parm_%beta-tau)
+    end do
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_greenB%matsubara_w(j)=dmft_%local_greenB%matsubara_w(j)+1.d0/(xj*w)+(parm_%e2)/(xj*w)/(xj*w)/(xj*w)
+    end do
+    dmft_%nB = -dmft_%local_greenB%matsubara_t(parm_%N_tau+1)
+  end subroutine eq_iptB
+  
+end module IPT_MOD

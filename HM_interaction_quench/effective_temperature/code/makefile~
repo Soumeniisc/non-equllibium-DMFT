@@ -1,0 +1,58 @@
+SRC=$(PWD)/src_para_HM
+MOD=$(PWD)/mod
+OBJ=$(PWD)/obj
+
+#FC=gfortran -ffree-line-length-none -lfftw3
+FC=gfortran -ffree-line-length-none 
+#INC=/usr/local/include
+INC=/usr/include
+#LIB=/usr/local/lib
+LIB=/usr/lib/x86_64-linux-gnu/
+#LIB=/usr/lib
+
+#FC=ifort -ffree-line-length-none -lfftw3
+#INC=/opt/intel/composer_xe_2013.5.192/mkl/include
+#LIB=/opt/intel/composer_xe_2013.5.192/mkl/lib
+#FC_FLAGS=-O3 -I$(INC) -L$(LIB) -lfftw3 -lm -fno-backtrace -g -fcheck=all -Wall -J$(MOD)
+FC_FLAGS=-O3 -I$(INC) -L$(LIB) -lfftw3 -lm -J$(MOD)
+#-O0 -debug -traceback -check -ftrapuv
+PROG=eq-dmft_HM
+
+### make all
+all: $(PROG)
+
+$(PROG): $(OBJ)/main.o $(OBJ)/noneq-dmft.o $(OBJ)/eq-dmft.o $(OBJ)/ipt.o $(OBJ)/dmft.o $(OBJ)/green.o $(OBJ)/parm.o $(OBJ)/integral.o $(OBJ)/fft.o $(OBJ)/const.o
+	$(FC) $(OBJ)/main.o $(OBJ)/noneq-dmft.o $(OBJ)/eq-dmft.o $(OBJ)/ipt.o $(OBJ)/dmft.o $(OBJ)/green.o $(OBJ)/parm.o $(OBJ)/integral.o $(OBJ)/fft.o $(OBJ)/const.o $(FC_FLAGS) -o $(PROG)
+
+$(OBJ)/main.o: $(SRC)/main_HM_eq.f90 $(OBJ)/noneq-dmft.o $(OBJ)/eq-dmft.o $(OBJ)/dmft.o $(OBJ)/parm.o 
+	$(FC) -c $(SRC)/main_HM_eq.f90 -o $(OBJ)/main.o $(FC_FLAGS)
+
+$(OBJ)/noneq-dmft.o: $(SRC)/noneq-dmft.f90 $(OBJ)/ipt.o $(OBJ)/dmft.o $(OBJ)/green.o $(OBJ)/parm.o $(OBJ)/integral.o $(OBJ)/fft.o $(OBJ)/const.o
+	$(FC) -c $(SRC)/noneq-dmft.f90 -o $(OBJ)/noneq-dmft.o $(FC_FLAGS)
+
+$(OBJ)/eq-dmft.o: $(SRC)/eq-dmft_HM.f90 $(OBJ)/ipt.o $(OBJ)/dmft.o $(OBJ)/green.o $(OBJ)/parm.o $(OBJ)/fft.o $(OBJ)/integral.o $(OBJ)/const.o
+	$(FC) -c $(SRC)/eq-dmft_HM.f90 -o $(OBJ)/eq-dmft.o $(FC_FLAGS)
+
+$(OBJ)/ipt.o: $(SRC)/ipt.f90 $(OBJ)/dmft.o $(OBJ)/green.o $(OBJ)/parm.o $(OBJ)/integral.o $(OBJ)/fft.o $(OBJ)/const.o
+	$(FC) -c $(SRC)/ipt.f90 -o $(OBJ)/ipt.o $(FC_FLAGS)
+
+$(OBJ)/dmft.o: $(SRC)/dmft.f90 $(OBJ)/green.o $(OBJ)/integral.o $(OBJ)/parm.o $(OBJ)/const.o
+	$(FC) -c $(SRC)/dmft.f90 -o $(OBJ)/dmft.o $(FC_FLAGS)
+
+$(OBJ)/green.o: $(SRC)/green.f90 $(OBJ)/parm.o $(OBJ)/integral.o $(OBJ)/fft.o $(OBJ)/const.o
+	$(FC) -c $(SRC)/green.f90 -o $(OBJ)/green.o $(FC_FLAGS)
+
+$(OBJ)/fft.o: $(SRC)/fft.f90 $(OBJ)/const.o $(OBJ)/parm.o
+	$(FC) $(FC_FLAGS) -c $(SRC)/fft.f90 -o $(OBJ)/fft.o
+
+$(OBJ)/parm.o: $(SRC)/parm.f90 $(OBJ)/const.o
+	$(FC) -c $(SRC)/parm.f90 -o $(OBJ)/parm.o $(FC_FLAGS)
+
+$(OBJ)/integral.o: $(SRC)/integral.f90 $(OBJ)/const.o
+	$(FC) -c $(SRC)/integral.f90 -o $(OBJ)/integral.o $(FC_FLAGS)
+
+$(OBJ)/const.o: $(SRC)/const.f90
+	$(FC) -c $(SRC)/const.f90 -o $(OBJ)/const.o $(FC_FLAGS)
+
+clean:
+	rm $(MOD)/* $(OBJ)/* $(PROG)

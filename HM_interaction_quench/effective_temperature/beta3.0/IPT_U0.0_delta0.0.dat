@@ -1,0 +1,19 @@
+ main is started2
+ IPT                                                                                                 ------------------------
+           0 ------init------------------
+ mixing--------------  0.50000000000000000     
+ parameter is set
+ dmft is constructed
+ output files are intialised
+ non interacting grren finction is being set as  host green function
+  Iteration #  1
+ |G0_new-G0_old| =   0.0048743668
+  Iteration #  2
+ |G0_new-G0_old| =   0.0011477366
+  Iteration #  3
+ |G0_new-G0_old| =   0.0003940633
+  Iteration #  4
+ |G0_new-G0_old| =   0.0001424527
+  Iteration #  5
+ |G0_new-G0_old| =   0.0000520233
+Equilibrium DMFT is converged

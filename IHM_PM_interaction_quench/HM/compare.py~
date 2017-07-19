@@ -1,0 +1,30 @@
+import matplotlib.pyplot as plt
+from scipy import *
+import numpy as np
+
+d = loadtxt("density")
+dA = loadtxt("densityA")
+dB = loadtxt("densityB")
+#print d[:,1]
+plt.plot(d[:,0],d[:,1],'-o',label="HM_original")
+#plt.plot(dA[:,0],dA[:,1],label="HM_A")
+#plt.plot(dB[:,0],dB[:,1],label="HM_B")
+plt.legend()
+plt.xlabel("time")
+plt.ylabel("density")
+plt.show()
+
+
+
+d = loadtxt("double-occupancy")
+dA = loadtxt("double-occupancyA")
+dB = loadtxt("double-occupancyB")
+#print d[:,1]
+plt.plot(d[:,0],d[:,1],'-o',label="HM_original")
+plt.plot(dA[:,0],dA[:,1],'-o',label="HM_A")
+#plt.plot(dB[:,0],dB[:,1],'-o',label="HM_B")
+plt.legend()
+plt.xlabel("time")
+plt.ylabel("double-occupancy")
+plt.savefig("double-occupancy.eps",format="eps")
+plt.show()

@@ -1,0 +1,115 @@
+import matplotlib.pyplot as plt
+from scipy import *
+import numpy as np
+
+U_i = 0.0
+U_f = 1.0
+
+color_list = ['r', 'b', 'g']
+
+string = "B_A_init_A_B_solver"
+string = ""
+#d = loadtxt("density")
+dA = loadtxt("densityA_U1.0")
+dB = loadtxt("densityB_U1.0")
+dA2 = loadtxt("densityA_U2.0")
+dB2 = loadtxt("densityB_U2.0")
+dA3 = loadtxt("densityA_U3.0")
+dB3 = loadtxt("densityB_U3.0")
+#print d[:,1]
+
+ax = plt.axes()
+plt.plot(dA[:,0],dA[:,1],color=color_list[0],label=r'$U_i = 0.0t \rightarrow U_f = 1.0t$')
+plt.plot(dB[:,0],dB[:,1],color=color_list[0])
+plt.plot(dA2[:,0],dA2[:,1],color=color_list[1],label=r'$U_i = 0.0t \rightarrow U_f = 2.0t$')
+plt.plot(dB2[:,0],dB2[:,1],color=color_list[1])
+plt.plot(dA3[:,0],dA3[:,1],color=color_list[2],label=r'$U_i = 0.0t \rightarrow U_f = 3.0t$')
+plt.plot(dB3[:,0],dB3[:,1],color=color_list[2])
+ax.arrow(4.5, 0.177, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[0], ec=color_list[0])
+ax.arrow(4.5, 0.823, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[0], ec=color_list[0])
+ax.arrow(4.5, 0.252, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[1], ec=color_list[1])
+ax.arrow(4.5, 0.7471, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[1], ec=color_list[1])
+ax.arrow(4.5, 0.33, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[2], ec=color_list[2])
+ax.arrow(4.5, 0.67, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[2], ec=color_list[2])
+
+plt.text(1.0,0.5,r'$\Delta = 1.0t,\beta=16.0$',size=20)
+#plt.text(2.0,0.6,r'$U_i = 0.0t \rightarrow U_f = 2.0t$',size = 20)
+plt.legend(loc = 5)
+#plt.ylim(0.4,0.5)
+plt.xlabel("time")
+plt.ylabel("density")
+plt.savefig("density%s.eps"%string,format="eps")
+plt.show()
+
+
+
+
+dA = loadtxt("double-occupancyA_U1.0")
+dB = loadtxt("double-occupancyB_U1.0")
+dA2 = loadtxt("double-occupancyA_U2.0")
+dB2 = loadtxt("double-occupancyB_U2.0")
+dA3 = loadtxt("double-occupancyA_U3.0")
+dB3 = loadtxt("double-occupancyB_U3.0")
+ax = plt.axes()
+plt.plot(dA[:,0],dA[:,1],color=color_list[0],label=r'$U_i = 0.0t \rightarrow U_f = 1.0t$')
+plt.plot(dB[:,0],dB[:,1],color=color_list[0])
+plt.plot(dA2[:,0],dA2[:,1],color=color_list[1],label=r'$U_i = 0.0t \rightarrow U_f = 2.0t$')
+plt.plot(dB2[:,0],dB2[:,1],color=color_list[1])
+plt.plot(dA3[:,0],dA3[:,1],color=color_list[2],label=r'$U_i = 0.0t \rightarrow U_f = 3.0t$')
+plt.plot(dB3[:,0],dB3[:,1],color=color_list[2])
+plt.text(2.0,0.2,r'$\Delta = 1.0t,\beta=16.0$',size=20)
+ax.arrow(4.5, 0.0222, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[0], ec=color_list[0])
+ax.arrow(4.5, 0.672, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[0], ec=color_list[0])
+ax.arrow(4.5, 0.031, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[1], ec=color_list[1])
+ax.arrow(4.5, 0.529, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[1], ec=color_list[1])
+ax.arrow(4.5, 0.0448, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[2], ec=color_list[2])
+ax.arrow(4.5, 0.379, 0.4 , 0.0, head_width=0.03, head_length=0.1, fc=color_list[2], ec=color_list[2])
+
+plt.legend(loc=10)
+plt.xlabel("time")
+plt.ylabel("double-occupancy")
+plt.savefig("double-occupancy%s.eps"%string,format="eps")
+plt.show()
+
+'''
+#d = loadtxt("kinetic-energy")
+dA = loadtxt("kinetic-energyA")
+dB = loadtxt("kinetic-energyB")
+#dB1 = loadtxt("kinetic-energyB1")
+#print d[:,1]
+#plt.plot(d[:,0],d[:,1],'-o',label="HM_original")
+plt.plot(dA[:,0],dA[:,1],'-o',label="HM_A")
+plt.plot(dB[:,0],dB[:,1],'-o',label="HM_B")
+#plt.plot(dB1[:,0],dB1[:,1],'-o',label="HM_B1")
+plt.legend()
+plt.xlabel("time")
+plt.ylabel("kinetic-energy")
+plt.savefig("kinetic-energy%s.eps"%string,format="eps")
+plt.show()
+
+#d = loadtxt("interaction-energy")
+dA = loadtxt("interaction-energyA")
+dB = loadtxt("interaction-energyB")
+#print d[:,1]
+#plt.plot(d[:,0],d[:,1],'-o',label="HM_original")
+plt.plot(dA[:,0],dA[:,1],'-o',label="HM_A")
+plt.plot(dB[:,0],dB[:,1],'-o',label="HM_B")
+plt.legend()
+plt.xlabel("time")
+plt.ylabel("interaction-energy")
+plt.savefig("interaction-energy%s.eps"%string,format="eps")
+plt.show()
+
+#d = loadtxt("total-energy")
+dA = loadtxt("total-energyA")
+dB = loadtxt("total-energyB")
+#print d[:,1]
+#plt.plot(d[:,0],d[:,1],'-o',label="HM_original")
+plt.plot(dA[:,0],dA[:,1],'-o',label="HM_A")
+plt.plot(dB[:,0],dB[:,1],'-o',label="HM_B")
+plt.legend()
+plt.xlabel("time")
+plt.ylabel("total-energy")
+plt.savefig("total-energy%s.eps"%string,format="eps")
+plt.show()
+'''

@@ -1,0 +1,12 @@
+code
+====
+its only does the paramagnetic equllibium calculation for hubbard model. 
+
+analysis
+========
+
+
+data
+====
+data was produced to calculated effecting teperatue HM after quench. data was produced for beta = 1.0 to beta= 10.0 for U =0.0, 3.3. 
+

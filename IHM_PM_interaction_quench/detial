@@ -1,0 +1,7 @@
+HM
+===
+we are trying to see that IHM code could reproduce the Hubbard  Model result for all the interaction quench values(1.0,2.0,3.0)
+
+IHM
+===
+here we actually calculating result data for IHM with delta=1.0

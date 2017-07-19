@@ -1,0 +1,8 @@
+import matplotlib.pyplot as plt
+from scipy import *
+import numpy as np	
+
+d = loadtxt("dn")
+
+plt.plot(d[:,0],abs(np.array(d[:,2])+1j*np.array(d[:,2])),'-o')
+plt.show()

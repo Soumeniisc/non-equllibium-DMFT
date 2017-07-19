@@ -1,0 +1,38 @@
+\begin{thebibliography}{1}
+
+\bibitem{RMP}
+Hideo Aoki, Naoto Tsuji, Martin Eckstein, Marcus Kollar, Takashi Oka, and
+  Philipp Werner.
+\newblock Nonequilibrium dynamical mean-field theory and its applications.
+\newblock {\em Rev. Mod. Phys.}, 86:779--837, Jun 2014.
+
+\bibitem{soumen}
+Soumen Bag, Arti Garg, and H.~R. Krishnamurthy.
+\newblock Phase diagram of the half-filled ionic hubbard model.
+\newblock {\em Phys. Rev. B}, 91:235108, Jun 2015.
+
+\bibitem{HUB_para}
+Martin Eckstein, Marcus Kollar, and Philipp Werner.
+\newblock Thermalization after an interaction quench in the hubbard model.
+\newblock {\em Phys. Rev. Lett.}, 103:056403, Jul 2009.
+
+\bibitem{ArtiHM}
+Arti Garg, H.~R. Krishnamurthy, and Mohit Randeria.
+\newblock Doping a correlated band insulator: A new route to half-metallic
+  behavior.
+\newblock {\em Phys. Rev. Lett.}, 112:106406, Mar 2014.
+
+\bibitem{HUB_AFM}
+Naoto Tsuji, Martin Eckstein, and Philipp Werner.
+\newblock Nonthermal antiferromagnetic order and nonequilibrium criticality in
+  the hubbard model.
+\newblock {\em Phys. Rev. Lett.}, 110:136404, Mar 2013.
+
+\bibitem{HUB}
+Naoto Tsuji and Philipp Werner.
+\newblock Nonequilibrium dynamical mean-field theory based on weak-coupling
+  perturbation expansions: Application to dynamical symmetry breaking in the
+  hubbard model.
+\newblock {\em Phys. Rev. B}, 88:165115, Oct 2013.
+
+\end{thebibliography}

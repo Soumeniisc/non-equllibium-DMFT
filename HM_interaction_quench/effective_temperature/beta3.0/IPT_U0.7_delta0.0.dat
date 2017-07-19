@@ -1,0 +1,31 @@
+ main is started2
+ IPT                                                                                                 ------------------------
+           1 ------init------------------
+ mixing--------------  0.50000000000000000     
+ parameter is set
+ dmft is constructed
+ output files are intialised
+ reading eq green function
+  Iteration #  1
+ |G0_new-G0_old| =   2.4806176967
+  Iteration #  2
+ |G0_new-G0_old| =   0.8278294347
+  Iteration #  3
+ |G0_new-G0_old| =   0.2785924653
+  Iteration #  4
+ |G0_new-G0_old| =   0.0940209627
+  Iteration #  5
+ |G0_new-G0_old| =   0.0317422452
+  Iteration #  6
+ |G0_new-G0_old| =   0.0107185102
+  Iteration #  7
+ |G0_new-G0_old| =   0.0036193960
+  Iteration #  8
+ |G0_new-G0_old| =   0.0012222054
+  Iteration #  9
+ |G0_new-G0_old| =   0.0004127168
+  Iteration # 10
+ |G0_new-G0_old| =   0.0001393672
+  Iteration # 11
+ |G0_new-G0_old| =   0.0000470618
+Equilibrium DMFT is converged

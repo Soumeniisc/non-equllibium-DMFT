@@ -1,0 +1,14 @@
+code
+====
+its contain the original version of the code. only for dn(t) calculation a subroutine measure_dn(parm_,dmft_) and measure_dn2(parm_,dmft_) added in the noneq-dmft.f90 on 04/05/17. where first one is the only calculated retarded part of local_green(t,0) where as seond module calculate  all part  of local_green(t,t') using volterra integral but only reatred part is benchmarked for (t,0). other components of loca green's function at diffent time need to be benchmarked. 
+
+analysis
+========
+energy at U=1.0 and U=5.0 is matches with the liturature value. also dn(t) and double occupency is matching with the liturature value.
+also the effective temparature calculated in ../../effective temparature is matching with the liturature value
+
+data
+====
+ for U> 3.0 dtat was calculated using original code. U<3.0 dtat was calculated using the measure_dn(parm_,dmft_) and measure_dn2(parm_,dmft_) subroutine adaed code
+
+
