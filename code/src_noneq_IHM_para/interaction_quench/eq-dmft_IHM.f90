@@ -1,0 +1,530 @@
+!----------------------------------------------------------------------------
+!
+!  author: Naoto Tsuji <tsuji@cms.phys.s.u-tokyo.ac.jp>
+!
+!          Department of Physics, University of Tokyo
+!  data:   February 28, 2013
+!  update: Its modified by soumen on 05/01/17
+!
+!  update: read green function is added, print green function is added also added when to read the green function .init veriable
+! 
+!
+!----------------------------------------------------------------------------
+!last modified by soume on 12/04/17 modied over equllibium IHM  ipt_IHM.f90 file in src directory. initialize_self_energyA(B) sunroutine were added and called these in start_eq_dmft.
+module EQ_DMFT_MOD
+  
+  use CONST_MOD
+  use PARM_MOD
+  use DMFT_MOD
+  use GREEN_MOD
+  use IPT_MOD
+  use FFT_MOD
+  use INTEGRAL_MOD
+  implicit none
+  
+  private
+  public :: start_eq_dmft
+  
+contains
+  
+  subroutine start_eq_dmft(parm_,dmft_)
+    type(parm), intent(in)        :: parm_
+    type(dmft), intent(inout)     :: dmft_
+    integer                       :: i, j
+    double precision              :: w, tau
+    
+    dmft_%converged=.false.
+    dmft_%G0_diffA=1.d0
+    dmft_%G0_diffB=1.d0
+    dmft_%time_step=1
+    dmft_%iteration=1
+
+    if(parm_%init.eq.0) then
+	print*, "non interacting grren finction is being set as  host green function for A"
+    	call initialize_eq_green(parm_,dmft_)
+    else 
+	print*, "reading eq green function B"
+	call read_eq_green(parm_,dmft_)
+    end if
+	
+    ! equilibrium DMFT self-consistency loop
+    do while (.not. dmft_%converged .and. dmft_%iteration<=parm_%N_iter)
+       call eq_impurity_solutionA(parm_,dmft_)
+       call eq_dmft_self_consistencyB(parm_,dmft_)
+       call eq_impurity_solutionB(parm_,dmft_)
+       call eq_dmft_self_consistencyA(parm_,dmft_)
+       dmft_%iteration=dmft_%iteration+1
+       if (dmft_%G0_diffA<=parm_%tolerance .and. dmft_%G0_diffB<=parm_%tolerance ) then
+          dmft_%converged=.true.
+          write (*,'(A)') 'Equilibrium DMFT is converged'
+       end if
+       if (dmft_%iteration==parm_%N_iter+1 .and. dmft_%G0_diffA>parm_%tolerance .and. dmft_%G0_diffB>parm_%tolerance) then
+          write (*,'(A)') 'Equilibrium DMFT is NOT converged !!!!!'
+       end if
+    end do
+    
+    ! Fourier transformation: GA(w) -> GA(t)
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_greenA%matsubara_w(j)=dmft_%local_greenA%matsubara_w(j)-1.d0/(xj*w)-(parm_%e2)/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%local_greenA%matsubara_w,dmft_%local_greenA%matsubara_t)
+    do i=1, parm_%N_tau+1
+       tau=dble(i-1)*parm_%dtau
+       dmft_%local_greenA%matsubara_t(i)=dmft_%local_greenA%matsubara_t(i)-0.5d0+0.25d0*(parm_%e2)*tau*(parm_%beta-tau)
+    end do
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_greenA%matsubara_w(j)=dmft_%local_greenA%matsubara_w(j)+1.d0/(xj*w)+(parm_%e2)/(xj*w)/(xj*w)/(xj*w)
+    end do
+    
+
+    ! Fourier transformation: GB(w) -> GB(t)
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_greenB%matsubara_w(j)=dmft_%local_greenB%matsubara_w(j)-1.d0/(xj*w)-(parm_%e2)/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%local_greenB%matsubara_w,dmft_%local_greenB%matsubara_t)
+    do i=1, parm_%N_tau+1
+       tau=dble(i-1)*parm_%dtau
+       dmft_%local_greenB%matsubara_t(i)=dmft_%local_greenB%matsubara_t(i)-0.5d0+0.25d0*(parm_%e2)*tau*(parm_%beta-tau)
+    end do
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_greenB%matsubara_w(j)=dmft_%local_greenB%matsubara_w(j)+1.d0/(xj*w)+(parm_%e2)/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call initialize_self_energyA(parm_,dmft_) !it initialise contour self energy and other self energy like retaded, lesser, left.
+    call initialize_self_energyB(parm_,dmft_)
+
+    call measure_density(parm_,dmft_)
+    call measure_double_occupancy(parm_,dmft_)
+    call measure_kinetic_energy(parm_,dmft_)
+    call measure_interaction_energy(parm_,dmft_)
+    call measure_total_energy(parm_,dmft_)
+    call print_green_function(parm_,dmft_)
+    call print_self_function(parm_,dmft_)
+    call print_wiess_function(parm_,dmft_)
+  end subroutine start_eq_dmft
+  
+!*******************************EQ IMPURTY SOLVER************************  
+  subroutine eq_impurity_solutionA(parm_,dmft_)
+    type(parm), intent(in)       :: parm_
+    type(dmft), intent(inout)    :: dmft_
+    
+    if (parm_%solver=='IPT') then
+       call eq_iptA(parm_,dmft_)
+    end if
+    
+  end subroutine eq_impurity_solutionA
+!/////////////////////////  
+  subroutine eq_impurity_solutionB(parm_,dmft_)
+    type(parm), intent(in)       :: parm_
+    type(dmft), intent(inout)    :: dmft_
+    
+    if (parm_%solver=='IPT') then
+       call eq_iptB(parm_,dmft_)
+    end if
+    
+  end subroutine eq_impurity_solutionB
+  
+!*******************************INITIALISE SELF ENERGY at t=0.0 ************************  
+  subroutine initialize_self_energyA(parm_,dmft_)
+    type(parm), intent(in)       :: parm_
+    type(dmft), intent(inout)    :: dmft_
+    
+    if (parm_%solver=='IPT') then
+       call initialize_self_energy_iptA(parm_,dmft_)
+    end if
+    
+  end subroutine initialize_self_energyA
+!////////////////////////////////////////////
+  subroutine initialize_self_energyB(parm_,dmft_)
+    type(parm), intent(in)       :: parm_
+    type(dmft), intent(inout)    :: dmft_
+    
+    if (parm_%solver=='IPT') then
+       call initialize_self_energy_iptB(parm_,dmft_)
+    end if
+    
+  end subroutine initialize_self_energyB
+
+!****************************** EQ SELF CONSISTENCY CALCULATION WAS DONE HERE ********************************************* 
+  subroutine eq_dmft_self_consistencyA(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                         :: i, j, k
+    double precision                :: w, tau
+    
+    if (parm_%dos=='semicircular') then
+       ! solve the lattice Dyson equation: G0(w)=1/[i*w-G(w)]
+       do j=1, parm_%N_tau
+          w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+          dmft_%weiss_greenA%matsubara_w(j)=1.d0/(xj*w - parm_%delta + (parm_%U_i/2.0) - dmft_%local_greenB%matsubara_w(j) - parm_%U_i* dmft_%nA ) 
+       end do
+    end if
+    
+    ! Fourier transformation: G0(w) -> G0(t)
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%weiss_greenA%matsubara_w(j)=dmft_%weiss_greenA%matsubara_w(j)-1.d0/(xj*w)-parm_%e2/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%weiss_greenA%matsubara_w,dmft_%weiss_green_newA%matsubara_t)
+    do i=1, parm_%N_tau+1
+       tau=dble(i-1)*parm_%dtau
+       dmft_%weiss_green_newA%matsubara_t(i)=dmft_%weiss_green_newA%matsubara_t(i)-0.5d0+0.25d0*parm_%e2*tau*(parm_%beta-tau)
+    end do
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%weiss_greenA%matsubara_w(j)=dmft_%weiss_greenA%matsubara_w(j)+1.d0/(xj*w)+parm_%e2/(xj*w)/(xj*w)/(xj*w)
+    end do
+    
+    ! evaluate |G0_{new}-G0_{old}|
+    dmft_%G0_diffA=0.d0
+    do i=1, parm_%N_tau+1
+       dmft_%G0_diffA=dmft_%G0_diffA+abs(dmft_%weiss_green_newA%matsubara_t(i)-dmft_%weiss_greenA%matsubara_t(i))
+    end do
+    write (*,'(A,I3)') '  Iteration #', dmft_%iteration
+    write (*,'(A,f15.10,f15.10)') ' |G0_new-G0_old|,nA =', dmft_%G0_diffA,dmft_%nA
+    ! G0_{old} <= G0_{new}
+    dmft_%weiss_greenA%matsubara_t(:)=dmft_%weiss_green_newA%matsubara_t(:)
+    
+  end subroutine eq_dmft_self_consistencyA
+
+!//////////////////////////////////////////////////
+
+subroutine eq_dmft_self_consistencyB(parm_,dmft_)
+    type(parm), intent(in)       :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                         :: i, j, k
+    double precision                :: w, tau
+    
+    if (parm_%dos=='semicircular') then
+       ! solve the lattice Dyson equation: G0(w)=1/[i*w-G(w)]
+       do j=1, parm_%N_tau
+          w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+          dmft_%weiss_greenB%matsubara_w(j)=1.d0/(xj*w + parm_%delta + (parm_%U_i/2.0) - dmft_%local_greenA%matsubara_w(j) - parm_%U_i*dmft_%nB )
+       end do
+    end if
+    
+    ! Fourier transformation: G0(w) -> G0(t)
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%weiss_greenB%matsubara_w(j)=dmft_%weiss_greenB%matsubara_w(j)-1.d0/(xj*w)-parm_%e2/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%weiss_greenB%matsubara_w,dmft_%weiss_green_newB%matsubara_t)
+    do i=1, parm_%N_tau+1
+       tau=dble(i-1)*parm_%dtau
+       dmft_%weiss_green_newB%matsubara_t(i)=dmft_%weiss_green_newB%matsubara_t(i)-0.5d0+0.25d0*parm_%e2*tau*(parm_%beta-tau)
+    end do
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%weiss_greenB%matsubara_w(j)=dmft_%weiss_greenB%matsubara_w(j)+1.d0/(xj*w)+parm_%e2/(xj*w)/(xj*w)/(xj*w)
+    end do
+    
+    ! evaluate |G0_{new}-G0_{old}|
+    dmft_%G0_diffB=0.d0
+    do i=1, parm_%N_tau+1
+       dmft_%G0_diffB = dmft_%G0_diffB+abs(dmft_%weiss_green_newB%matsubara_t(i)-dmft_%weiss_greenB%matsubara_t(i))
+    end do
+    write (*,'(A,I3)') '  Iteration #', dmft_%iteration
+    write (*,'(A,f15.10,f15.10)') ' |G0_new-G0_old|,nB =', dmft_%G0_diffB,dmft_%nB
+    ! G0_{old} <= G0_{new}
+    dmft_%weiss_greenB%matsubara_t(:)=dmft_%weiss_green_newB%matsubara_t(:)
+    
+  end subroutine eq_dmft_self_consistencyB
+
+!****************************** INITIALISE EQUILLIBIUM WEISS GREEN"S FUNCTION *********************************************    
+  
+  subroutine initialize_eq_green(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    double precision                :: ek, e_max, de, w, tau
+    integer                         :: i, j, k,l
+
+     open (unit=14, file='density_old', status='unknown', action='read')
+    	read (14,*) l, dmft_%nA, dmft_%nB
+    print*, "nA,nB:",dmft_%nA, "  ",dmft_%nB
+    close(14)
+    ! initialize G0(w)
+    if (parm_%dos=='semicircular') then
+       e_max=2.d0
+       de=e_max/dble(parm_%N_e)
+      
+       do j=1, parm_%N_tau
+	  dmft_%weiss_greenA%matsubara_w(j)=0.d0
+          w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+          do k=2, 2*parm_%N_e
+             ek=dble(k-parm_%N_e-1)*de
+             dmft_%weiss_greenA%matsubara_w(j)=dmft_%weiss_greenA%matsubara_w(j)+de*sqrt(4.d0-ek**2)/(2.d0*pi)/(xj*w-ek)
+          end do
+	  dmft_%weiss_greenA%matsubara_w(j)= 1.d0/(xj*w - parm_%delta + (parm_%U_i/2.0) - dmft_%weiss_greenA%matsubara_w(j))
+       end do
+    end if
+    
+    ! Fourier transformation: G0(w) -> G0(t)
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%weiss_greenA%matsubara_w(j)=dmft_%weiss_greenA%matsubara_w(j)-1.d0/(xj*w)-parm_%e2/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%weiss_greenA%matsubara_w,dmft_%weiss_greenA%matsubara_t)
+    do i=1, parm_%N_tau+1
+       tau=dble(i-1)*parm_%dtau
+       dmft_%weiss_greenA%matsubara_t(i)=dmft_%weiss_greenA%matsubara_t(i)-0.5d0+0.25d0*parm_%e2*tau*(parm_%beta-tau)
+    end do
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%weiss_greenA%matsubara_w(j)=dmft_%weiss_greenA%matsubara_w(j)+1.d0/(xj*w)+parm_%e2/(xj*w)/(xj*w)/(xj*w)
+    end do
+    print*, "nA,nB:",dmft_%nA, "  ",dmft_%nB
+    print*, "n0A,n0B:",-dmft_%weiss_greenA%matsubara_t(parm_%N_tau+1), "  ",-dmft_%weiss_greenB%matsubara_t(parm_%N_tau+1)
+  end subroutine initialize_eq_green
+
+!//////////////////////////////////////////////////////
+
+  subroutine read_eq_green(parm_,dmft_)
+
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                	    :: i,j,l
+    double precision                :: w, re, im, tau
+    !open(unit=24,file='sig1upA.dat',status='unknown')
+     open (unit=14, file='density_old', status='unknown', action='read')
+    	read (14,*) l, dmft_%nA, dmft_%nA
+    print*, "nA,nB:",dmft_%nA, "  ",dmft_%nB
+    close(14)
+
+    open (unit=13, file='GfB_old', status='unknown', action='read')
+    do j=1, parm_%N_tau
+       read (13,*) w, re, im
+       dmft_%weiss_greenA%matsubara_w(j)= 1.d0/(xj*w - parm_%delta + (parm_%U_i/2.0)  - re - xj*im -parm_%U_i*dmft_%nA)
+       !dmft_%weiss_green%matsubara_w(j)= re + im
+   end do
+     
+    ! Fourier transformation: G0(w) -> G0(t)
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       !dmft_%weiss_greenA%matsubara_w(j)=dmft_%weiss_greenA%matsubara_w(j)-1.d0/(xj*w)-parm_%e2/(xj*w)/(xj*w)/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%weiss_greenA%matsubara_w,dmft_%weiss_greenA%matsubara_t)
+    do i=1, parm_%N_tau+1
+       tau=dble(i-1)*parm_%dtau
+       dmft_%weiss_greenA%matsubara_t(i)=dmft_%weiss_greenA%matsubara_t(i)!-0.5d0+0.25d0*parm_%e2*tau*(parm_%beta-tau)
+    end do
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%weiss_greenA%matsubara_w(j)=dmft_%weiss_greenA%matsubara_w(j)!+1.d0/(xj*w)+parm_%e2/(xj*w)/(xj*w)/(xj*w)
+    end do
+    
+    close (13)
+   
+  end subroutine read_eq_green
+  
+!****************************** MEASURED QUANTITY *********************************************   
+  subroutine measure_density(parm_,dmft_)
+    !  n(t)=<c^+(t)c(t)>
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    double precision                :: t
+    print*, "measuring density"
+    t=0.d0
+    dmft_%densityA(1)=-dmft_%local_greenA%matsubara_t(parm_%N_tau+1)
+    dmft_%densityB(1)=-dmft_%local_greenB%matsubara_t(parm_%N_tau+1)
+    
+    open (unit=7, file='densityA', status='old', action='write')
+    write (7,'(f15.10,f15.10)') t, (-dmft_%local_greenA%matsubara_t(parm_%N_tau+1))
+    close (7)
+    
+    open (unit=71, file='densityB', status='old', action='write')
+    write (71,'(f15.10,f15.10)') t, (-dmft_%local_greenB%matsubara_t(parm_%N_tau+1))
+    close (71)
+    print*, " density measurement is done"
+  end subroutine measure_density
+
+  !//////////////////////////////////////////////
+
+ subroutine measure_double_occupancy(parm_,dmft_)
+    !  d(t)=<n_up(t)*n_do(t)>
+    type(parm), intent(in)        :: parm_
+    type(dmft), intent(inout)     :: dmft_
+    integer                       :: i
+    double precision              :: t
+    double precision, allocatable :: SxGA(:)
+    double precision, allocatable :: SxGB(:)
+    
+    t=0.d0
+    ! d(t)=n_up(t)*n_do(t)-1/U*\int dtau self_energy^{M}(beta-tau)*G^{M}(tau)
+    if (parm_%U_i==0.d0) then
+       dmft_%double_occupancyA(1)=dmft_%densityA(1)**2
+       dmft_%double_occupancyB(1)=dmft_%densityB(1)**2
+    else
+       allocate(SxGA(parm_%N_tau+1))
+       allocate(SxGB(parm_%N_tau+1))
+       do i=1, parm_%N_tau+1
+          SxGA(i)=dmft_%self_energyA%matsubara_t(parm_%N_tau-i+2)*dmft_%local_greenA%matsubara_t(i)
+          SxGB(i)=dmft_%self_energyB%matsubara_t(parm_%N_tau-i+2)*dmft_%local_greenB%matsubara_t(i)
+       end do
+       dmft_%double_occupancyA(1)=dmft_%densityA(1)**2-1.d0/parm_%U_i*parm_%dtau*trapezoid_d(SxGA,1,parm_%N_tau+1)
+       dmft_%double_occupancyB(1)=dmft_%densityB(1)**2-1.d0/parm_%U_i*parm_%dtau*trapezoid_d(SxGB,1,parm_%N_tau+1)
+       deallocate(SxGA)
+       deallocate(SxGB)
+    end if
+    
+    open (unit=7, file='double-occupancyA', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10)') t, dmft_%double_occupancyA(1)
+    close (7)
+    open (unit=7, file='double-occupancyB', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10)') t, dmft_%double_occupancyB(1)
+    close (7)
+    
+  end subroutine measure_double_occupancy
+
+  !/////////////////////////////////////////
+
+  subroutine measure_kinetic_energy(parm_,dmft_)
+    !  E_{kin}(t)=2\sum_{k} E(k)<c_{k}^+(t)c_{k}(t)>
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                         :: i
+    double precision                :: t
+    double precision, allocatable   :: GxGA(:)
+    double precision, allocatable   :: GxGB(:)
+    
+    t=0.d0
+    if (parm_%dos=='semicircular') then
+       ! E_{kin}(0)=-2*\int_0^{beta} dtau G^M(tau)*G^M(beta-tau)
+       allocate(GxGA(parm_%N_tau+1))
+       allocate(GxGB(parm_%N_tau+1))
+       do i=1, parm_%N_tau+1
+          GxGA(i)=dmft_%local_greenA%matsubara_t(i)*dmft_%local_greenA%matsubara_t(parm_%N_tau-i+2)
+          GxGB(i)=dmft_%local_greenB%matsubara_t(i)*dmft_%local_greenB%matsubara_t(parm_%N_tau-i+2)
+       end do
+       dmft_%kinetic_energyA(1)=-2.d0*parm_%dtau*trapezoid_d(GxGA,1,parm_%N_tau+1)
+       dmft_%kinetic_energyB(1)=-2.d0*parm_%dtau*trapezoid_d(GxGB,1,parm_%N_tau+1)
+       deallocate(GxGA)
+       deallocate(GxGB)
+    end if
+    
+    open (unit=7, file='kinetic-energyA', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10)') t, dmft_%kinetic_energyA(1)
+    close (7)
+     open (unit=7, file='kinetic-energyB', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10)') t, dmft_%kinetic_energyB(1)
+    close (7)
+    
+  end subroutine measure_kinetic_energy
+  
+!////////////////////////////////////////////////////// 
+ 
+  subroutine measure_interaction_energy(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    double precision                :: t
+    
+    t=0.d0
+    open (unit=7, file='interaction-energyA', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10)') t, parm_%U_i*(dmft_%double_occupancyA(1)-dmft_%densityA(1)+0.25d0)
+    close (7)
+    
+    open (unit=7, file='interaction-energyB', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10)') t, parm_%U_i*(dmft_%double_occupancyB(1)-dmft_%densityB(1)+0.25d0)
+    close (7)
+    
+
+  end subroutine measure_interaction_energy
+ 
+!////////////////////////////////////////////////////// 
+  
+  subroutine measure_total_energy(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    double precision                :: t
+    
+    t=0.d0
+    open (unit=7, file='total-energyA', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10)') t, dmft_%kinetic_energyA(1)+parm_%U_i*(dmft_%double_occupancyA(1)-dmft_%densityA(1)+0.25d0)
+    close (7)
+
+    open (unit=7, file='total-energyB', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10)') t, dmft_%kinetic_energyB(1)+parm_%U_i*(dmft_%double_occupancyB(1)-dmft_%densityB(1)+0.25d0)
+    close (7)
+    
+  end subroutine measure_total_energy
+
+!****************************** Printing Data *********************************************   
+   subroutine print_green_function(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                	    :: j
+    double precision                :: w
+    
+    print*, "printing Green' function************************"
+    open (unit=12, file='GfA', status='old', action='write')
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       write (12,'(f15.10,f15.10,f15.10)') w, REALPART(dmft_%local_greenA%matsubara_w(j)), IMAGPART(dmft_%local_greenA%matsubara_w(j))
+    end do
+    
+    close (12)
+
+    open (unit=13, file='GfB', status='old', action='write')
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       write (13,'(f15.10,f15.10,f15.10)') w, REALPART(dmft_%local_greenB%matsubara_w(j)), IMAGPART(dmft_%local_greenB%matsubara_w(j))
+    end do
+    
+    close (13)
+    
+  end subroutine print_green_function
+ 
+  subroutine print_self_function(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                	    :: j
+    double precision                :: w
+    
+    print*, "printing Green' function************************"
+    open (unit=22, file='SigA', action='write')
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       write (22,'(f15.10,f15.10,f15.10)') w, REALPART(dmft_%self_energyA%matsubara_w(j)), IMAGPART(dmft_%self_energyA%matsubara_w(j))
+    end do
+    
+    close (22)
+
+    open (unit=23, file='SigB', action='write')
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       write (23,'(f15.10,f15.10,f15.10)') w, REALPART(dmft_%self_energyB%matsubara_w(j)), IMAGPART(dmft_%self_energyB%matsubara_w(j))
+    end do
+    
+    close (23)
+    
+  end subroutine print_self_function
+
+ subroutine print_wiess_function(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                	    :: j
+    double precision                :: w
+    
+    print*, "printing Green' function************************"
+    open (unit=32, file='WeissA', action='write')
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       write (32,'(f15.10,f15.10,f15.10)') w, REALPART(dmft_%weiss_greenA%matsubara_w(j)), IMAGPART(dmft_%weiss_greenA%matsubara_w(j))
+    end do
+    
+    close (32)
+
+    open (unit=33, file='WeissB', action='write')
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       write (33,'(f15.10,f15.10,f15.10)') w, REALPART(dmft_%weiss_greenB%matsubara_w(j)), IMAGPART(dmft_%weiss_greenB%matsubara_w(j))
+    end do
+    
+    close (33)
+    
+  end subroutine print_wiess_function
+  !TODO add total_energy, interaction energy, kinwtic energy need to be added from file eq-dmft.f90 
+  
+end module EQ_DMFT_MOD
