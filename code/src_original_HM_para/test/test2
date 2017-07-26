@@ -1,0 +1,194 @@
+ subroutine initialize_noneq_green_e_positive(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                         :: i, j, k, n,l
+    real                            ::  epsilon_,w
+    complex(kind(0d0)), allocatable :: SxG(:)
+    complex(kind(0d0)), allocatable :: h(:)
+
+    epsilon_ = -0.1
+    n=dmft_%time_step
+    allocate(h(n))
+    h(:)= epsilon_
+
+    !intialising matubara green function at epsilon which will be needed to intialise lesser green function at time 0.0
+    
+    do j=1, parm_%N_tau
+       w=dble(2*j-parm_%N_tau-1)*pi/parm_%beta
+       dmft_%local_green_e%matsubara_w(j)=1.d0 / (xj*w - epsilon_ )
+       dmft_%local_green_e%matsubara_w(j)=dmft_%local_green_e%matsubara_w(j)-1.d0/(xj*w)
+    end do
+    call fft_w2t(parm_,dmft_%local_green_e%matsubara_w,dmft_%local_green_e%matsubara_t)
+    open (unit=7, file='G_e_tau',  action='write')
+    do j=1, parm_%N_tau+1
+    write (7,*)  (j-1)*parm_%dtau, dmft_%local_green_e%matsubara_t(j)-0.5
+    end do
+    n=dmft_%time_step
+    ! initialize G(1,1) 
+        
+       dmft_%local_green_e%retarded(1,1)=-xj       
+       do j=1, parm_%N_tau+1         
+          dmft_%local_green_e%left_mixing(1,j)=-xj*dmft_%local_green_e%matsubara_t(parm_%N_tau-j+2)
+       end do
+       dmft_%local_green_e%lesser(1,1)=-xj*dmft_%local_green_e%matsubara_t(parm_%N_tau+1)      
+       if (parm_%dos=='semicircular') then
+          ! initialize d/dt G0(t,t') = -i*(G*G0)(t,t')
+          dmft_%local_green_der_e%retarded(1)=0.d0
+          dmft_%local_green_der_e%left_mixing(:)=0.d0
+          allocate(SxG(parm_%N_tau+1))
+          do j=1, parm_%N_tau+1
+             do k=1, j
+                SxG(k)=dmft_%local_green_e%left_mixing(1,k)*dmft_%local_green_e%matsubara_t(parm_%N_tau+k-j+1)
+             end do
+             dmft_%local_green_der_e%left_mixing(j)=dmft_%local_green_der_e%left_mixing(j)+xj*parm_%dtau*trapezoid_z(SxG,1,j)
+             do k=j, parm_%N_tau+1
+                SxG(k)=dmft_%local_green_e%left_mixing(1,k)*dmft_%local_green_e%matsubara_t(k-j+1)
+             end do
+             dmft_%local_green_der_e%left_mixing(j)=dmft_%local_green_der_e%left_mixing(j)-xj*parm_%dtau*trapezoid_z(SxG,j,parm_%N_tau+1)
+          end do
+          do k=1, parm_%N_tau+1
+             SxG(k)=dmft_%local_green_e%left_mixing(1,k)*conjg(dmft_%local_green_e%left_mixing(1,parm_%N_tau-k+2))
+          end do
+          dmft_%local_green_der_e%lesser(1)=-xj*(-xj)*parm_%dtau*trapezoid_z(SxG,1,parm_%N_tau+1)
+          deallocate(SxG)
+       end if
+
+    call Volterra_intdiff(parm_,n,h,dmft_%self_energy,dmft_%local_green_e,dmft_%local_green_der_e,dmft_%local_green_der_e_new)
+    !print*, "measured dn(t)------------- for n:------------------------------------",n
+    do l=1, n
+    	dmft_%local_green_der_e%retarded(l)=dmft_%local_green_der_e_new%retarded(l)
+	dmft_%local_green_der_e%left_mixing(l)=dmft_%local_green_der_e_new%left_mixing(l)
+	dmft_%local_green_der_e%lesser(l)=dmft_%local_green_der_e_new%lesser(l)
+    end do 
+    open (unit=7, file='n_lesser_positive', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10,f15.10)') dble(n-1)*parm_%dt, REAL(dmft_%local_green_e%lesser(n,n)), IMAG(dmft_%local_green_e%lesser(n,n))
+    close (7) 
+ end subroutine initialize_noneq_green_e_positive
+
+!//////////////////////////////////////////
+  subroutine Volterra_intdiff(parm_,n,h,K,G,G_der,G_der_new)
+    !----------------------------------------------------------------------------
+    !  This subroutine solves a Volterra integrodifferential equation of 
+    !  the second kind,
+    ! 
+    !              [i*d/dt-h(t)]G(t,t')=delta(t,t')+(K*G)(t,t'),
+    !
+    !  for t=n*dt or t'=n*dt. The integrodifferential equation is solved by 
+    !  the second-order implicit Runge-Kutta method.
+    !----------------------------------------------------------------------------
+    type(parm), intent(in)                 :: parm_
+    integer, intent(in)                    :: n       ! time step
+    complex(kind(0d0))                     :: h(:)
+    type(KB), intent(in)                   :: K
+    type(KB), intent(out)                  :: G
+    type(KB_derivative), intent(in)        :: G_der
+    type(KB_derivative), intent(out)       :: G_der_new
+    integer                                :: i, j, l
+    complex(kind(0d0)), allocatable        :: KxG(:)
+    complex(kind(0d0))                     :: G_der_lesser ! d/dt G^{<}(t_{n-1},t_{n})
+    
+    allocate(KxG(max(parm_%N_tau+1,n)))
+    
+    ! retarded Green function
+    ! d/dt G^{R}(t,t') = -i*delta(t,t')-i*h(t)*G^{R}(t,t')
+    !                    -i\int_{t'}^{t} ds K^{R}(t,s)*G^{R}(s,t')
+    G%retarded(n,n)=-xj
+    G_der_new%retarded(n)=-xj*h(n)*G%retarded(n,n)
+    do j=1, n-1
+       G%retarded(n,j)=G%retarded(n-1,j)+0.5d0*parm_%dt*G_der%retarded(j)
+       do l=j, n-1
+          KxG(l)=K%retarded(n,l)*G%retarded(l,j)
+       end do
+       G_der_new%retarded(j)=-xj*parm_%dt*trapezoid_half_edge(KxG,j,n-1)
+       G%retarded(n,j)=G%retarded(n,j)+0.5d0*parm_%dt*G_der_new%retarded(j)
+       G%retarded(n,j)=G%retarded(n,j)/(1.d0+0.5d0*xj*parm_%dt*h(n)+0.25d0*xj*parm_%dt**2*K%retarded(n,n))
+       G_der_new%retarded(j)=G_der_new%retarded(j)-xj*h(n)*G%retarded(n,j)-0.5d0*xj*parm_%dt*K%retarded(n,n)*G%retarded(n,j)
+    end do
+    
+    ! left-mixing Green function
+    ! d/dt G^{Left}(t,tau') = -i*h(t)*G^{Left}(t,tau')
+    !                         -i\int_0^{beta} dtau K^{Left}(t,tau)*G^{M}(tau,tau')
+    do j=1, parm_%N_tau+1
+       G%left_mixing(n,j)=G%left_mixing(n-1,j)+0.5d0*parm_%dt*G_der%left_mixing(j)
+       do l=1, j
+          KxG(l)=K%left_mixing(n,l)*G%matsubara_t(parm_%N_tau+l-j+1)
+       end do
+       G_der_new%left_mixing(j)=xj*parm_%dtau*trapezoid_z(KxG,1,j)
+       do l=j, parm_%N_tau+1
+          KxG(l)=K%left_mixing(n,l)*G%matsubara_t(l-j+1)
+       end do
+       G_der_new%left_mixing(j)=G_der_new%left_mixing(j)-xj*parm_%dtau*trapezoid_z(KxG,j,parm_%N_tau+1)
+       do l=1, n-1
+          KxG(l)=K%retarded(n,l)*G%left_mixing(l,j)
+       end do
+       G_der_new%left_mixing(j)=G_der_new%left_mixing(j)-xj*parm_%dt*trapezoid_half_edge(KxG,1,n-1)
+       G%left_mixing(n,j)=G%left_mixing(n,j)+0.5d0*parm_%dt*G_der_new%left_mixing(j)
+       G%left_mixing(n,j)=G%left_mixing(n,j)/(1.d0+0.5d0*xj*parm_%dt*h(n)+0.25d0*xj*parm_%dt**2*K%retarded(n,n))
+       G_der_new%left_mixing(j)=G_der_new%left_mixing(j)-xj*h(n)*G%left_mixing(n,j)-0.5d0*xj*parm_%dt*K%retarded(n,n)*G%left_mixing(n,j)
+    end do
+    
+    ! lesser Green function
+    ! d/dt G^{<}(t,t') = -i*h(t)*G^{<}(t,t')
+    !                    -i*(-i)*\int_0^{beta} dtau K^{Left}(t,tau)*G^{Right}(tau,t')
+    !                    -i*\int_0^{t'} ds K^{<}(t,s)*G^{A}(s,t')
+    !                    -i*\int_0^{t} ds K^{R}(t,s)*G^{<}(s,t')
+    !
+    ! G^{<}(t_{n},t_{j}), d/dt G^{<}(t_{n},t_{j})
+    do j=1, n-1
+       G%lesser(n,j)=G%lesser(n-1,j)+0.5d0*parm_%dt*G_der%lesser(j)
+       do l=1, parm_%N_tau+1
+          KxG(l)=K%left_mixing(n,l)*conjg(G%left_mixing(j,parm_%N_tau-l+2))
+       end do
+       G_der_new%lesser(j)=-xj*(-xj)*parm_%dtau*trapezoid_z(KxG,1,parm_%N_tau+1)
+       do l=1, j
+          KxG(l)=K%lesser(n,l)*conjg(G%retarded(j,l))
+       end do
+       G_der_new%lesser(j)=G_der_new%lesser(j)-xj*parm_%dt*trapezoid_z(KxG,1,j)
+       do l=1, n-1
+          KxG(l)=K%retarded(n,l)*G%lesser(l,j)
+       end do
+       G_der_new%lesser(j)=G_der_new%lesser(j)-xj*parm_%dt*trapezoid_half_edge(KxG,1,n-1)
+       G%lesser(n,j)=G%lesser(n,j)+0.5d0*parm_%dt*G_der_new%lesser(j)
+       G%lesser(n,j)=G%lesser(n,j)/(1.d0+0.5d0*xj*parm_%dt*h(n)+0.25d0*xj*parm_%dt**2*K%retarded(n,n))
+       G_der_new%lesser(j)=G_der_new%lesser(j)-xj*h(n)*G%lesser(n,j)-0.5d0*xj*parm_%dt*K%retarded(n,n)*G%lesser(n,j)
+    end do
+    ! Hermite conjugate
+    do i=1, n-1
+       G%lesser(i,n)=-conjg(G%lesser(n,i))
+    end do
+    ! d/dt G^{<}(t_{n-1},t_{n})
+    G_der_lesser=-xj*h(n-1)*G%lesser(n-1,n)
+    do l=1, parm_%N_tau+1
+       KxG(l)=K%left_mixing(n-1,l)*conjg(G%left_mixing(n,parm_%N_tau-l+2))
+    end do
+    G_der_lesser=G_der_lesser-xj*(-xj)*parm_%dtau*trapezoid_z(KxG,1,parm_%N_tau+1)
+    do l=1, n
+       KxG(l)=K%lesser(n-1,l)*conjg(G%retarded(n,l))
+    end do
+    G_der_lesser=G_der_lesser-xj*parm_%dt*trapezoid_z(KxG,1,n)
+    do l=1, n-1
+       KxG(l)=K%retarded(n-1,l)*G%lesser(l,n)
+    end do
+    G_der_lesser=G_der_lesser-xj*parm_%dt*trapezoid_z(KxG,1,n-1)
+    ! G^{<}(t_{n},t_{n}), d/dt G^{<}(t_{n},t_{n})
+    G%lesser(n,n)=G%lesser(n-1,n)+0.5d0*parm_%dt*G_der_lesser
+    do l=1, parm_%N_tau+1
+       KxG(l)=K%left_mixing(n,l)*conjg(G%left_mixing(n,parm_%N_tau-l+2))
+    end do
+    G_der_new%lesser(n)=-xj*(-xj)*parm_%dtau*trapezoid_z(KxG,1,parm_%N_tau+1)
+    do l=1, n
+       KxG(l)=K%lesser(n,l)*conjg(G%retarded(n,l))
+    end do
+    G_der_new%lesser(n)=G_der_new%lesser(n)-xj*parm_%dt*trapezoid_z(KxG,1,n)
+    do l=1, n-1
+       KxG(l)=K%retarded(n,l)*G%lesser(l,n)
+    end do
+    G_der_new%lesser(n)=G_der_new%lesser(n)-xj*parm_%dt*trapezoid_half_edge(KxG,1,n-1)
+    G%lesser(n,n)=G%lesser(n,n)+0.5d0*parm_%dt*G_der_new%lesser(n)
+    G%lesser(n,n)=G%lesser(n,n)/(1.d0+0.5d0*xj*parm_%dt*h(n)+0.25d0*xj*parm_%dt**2*K%retarded(n,n))
+    G_der_new%lesser(n)=G_der_new%lesser(n)-xj*h(n)*G%lesser(n,n)-0.5d0*xj*parm_%dt*K%retarded(n,n)*G%lesser(n,n)
+    
+    deallocate(KxG)
+    
+  end subroutine Volterra_intdiff
+ 

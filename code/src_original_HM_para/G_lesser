@@ -1,0 +1,55 @@
+! G^{<}(t_{n},t_{j}), d/dt G^{<}(t_{n},t_{j})
+    do j=1, n-1
+       G%lesser(n,j)=G%lesser(n-1,j)+0.5d0*parm_%dt*G_der%lesser(j)
+       do l=1, parm_%N_tau+1
+          KxG(l)=K%left_mixing(n,l)*conjg(G%left_mixing(j,parm_%N_tau-l+2))
+       end do
+       G_der_new%lesser(j)=-xj*(-xj)*parm_%dtau*trapezoid_z(KxG,1,parm_%N_tau+1)
+       do l=1, j
+          KxG(l)=K%lesser(n,l)*conjg(G%retarded(j,l))
+       end do
+       G_der_new%lesser(j)=G_der_new%lesser(j)-xj*parm_%dt*trapezoid_z(KxG,1,j)
+       do l=1, n-1
+          KxG(l)=K%retarded(n,l)*G%lesser(l,j)
+       end do
+       G_der_new%lesser(j)=G_der_new%lesser(j)-xj*parm_%dt*trapezoid_half_edge(KxG,1,n-1)
+       G%lesser(n,j)=G%lesser(n,j)+0.5d0*parm_%dt*G_der_new%lesser(j)
+       G%lesser(n,j)=G%lesser(n,j)/(1.d0+0.5d0*xj*parm_%dt*h(n)+0.25d0*xj*parm_%dt**2*K%retarded(n,n))
+       G_der_new%lesser(j)=G_der_new%lesser(j)-xj*h(n)*G%lesser(n,j)-0.5d0*xj*parm_%dt*K%retarded(n,n)*G%lesser(n,j)
+    end do
+   ! Hermite conjugate
+    do i=1, n-1
+       G%lesser(i,n)=-conjg(G%lesser(n,i))
+    end do
+    ! d/dt G^{<}(t_{n-1},t_{n})
+    G_der_lesser=-xj*h(n-1)*G%lesser(n-1,n)
+    do l=1, parm_%N_tau+1
+       KxG(l)=K%left_mixing(n-1,l)*conjg(G%left_mixing(n,parm_%N_tau-l+2))
+    end do
+    G_der_lesser=G_der_lesser-xj*(-xj)*parm_%dtau*trapezoid_z(KxG,1,parm_%N_tau+1)
+    do l=1, n
+       KxG(l)=K%lesser(n-1,l)*conjg(G%retarded(n,l))
+    end do
+    G_der_lesser=G_der_lesser-xj*parm_%dt*trapezoid_z(KxG,1,n)
+    do l=1, n-1
+       KxG(l)=K%retarded(n-1,l)*G%lesser(l,n)
+    end do
+    G_der_lesser=G_der_lesser-xj*parm_%dt*trapezoid_z(KxG,1,n-1)
+    ! G^{<}(t_{n},t_{n}), d/dt G^{<}(t_{n},t_{n})
+    G%lesser(n,n)=G%lesser(n-1,n)+0.5d0*parm_%dt*G_der_lesser
+    do l=1, parm_%N_tau+1
+       KxG(l)=K%left_mixing(n,l)*conjg(G%left_mixing(n,parm_%N_tau-l+2))
+    end do
+    G_der_new%lesser(n)=-xj*(-xj)*parm_%dtau*trapezoid_z(KxG,1,parm_%N_tau+1)
+    do l=1, n
+       KxG(l)=K%lesser(n,l)*conjg(G%retarded(n,l))
+    end do
+    G_der_new%lesser(n)=G_der_new%lesser(n)-xj*parm_%dt*trapezoid_z(KxG,1,n)
+    do l=1, n-1
+       KxG(l)=K%retarded(n,l)*G%lesser(l,n)
+    end do
+    G_der_new%lesser(n)=G_der_new%lesser(n)-xj*parm_%dt*trapezoid_half_edge(KxG,1,n-1)
+    G%lesser(n,n)=G%lesser(n,n)+0.5d0*parm_%dt*G_der_new%lesser(n)
+    G%lesser(n,n)=G%lesser(n,n)/(1.d0+0.5d0*xj*parm_%dt*h(n)+0.25d0*xj*parm_%dt**2*K%retarded(n,n))
+    G_der_new%lesser(n)=G_der_new%lesser(n)-xj*h(n)*G%lesser(n,n)-0.5d0*xj*parm_%dt*K%retarded(n,n)*G%lesser(n,n)
+

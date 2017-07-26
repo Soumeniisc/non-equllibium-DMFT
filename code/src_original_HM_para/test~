@@ -1,0 +1,98 @@
+ subroutine measure_dn(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                         :: n,l,i
+    double precision                :: t,dn,dnd ! dn = G^R(t,0) and dnd = d/dt G^R(t,0)
+    complex(kind(0d0)), allocatable        :: KxG(:)
+    complex(kind(0d0)), allocatable :: h(:)
+ 
+      
+    allocate(KxG(max(parm_%N_tau+1,n)))
+    n=dmft_%time_step
+
+    allocate(h(n))
+    h(:)=0.d0
+    t=dble(n-1)*parm_%dt
+
+    if (n==2) then
+       dmft_%local_green_e%retarded(1,1)=-xj
+        !if (parm_%dos=='semicircular') then
+          ! initialize d/dt G(t,t') = -i*(\Sigma*G)(t,t')
+          dmft_%local_green_der%retarded(1)=-xj
+    open (unit=7, file='dn', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10,f15.10,f15.10,f15.10)') 0.0, Real(dmft_%local_green_e%retarded(1,1)),imag(dmft_%local_green_e%retarded(1,1)), real(dmft_%local_green_der%retarded(1)),imag(dmft_%local_green_der%retarded(1))
+    close (7)
+    end if
+
+    ! retarded Green function
+    ! d/dt G^{R}(t,t') = -i*delta(t,t')-i*h(t)*G^{R}(t,t')
+    !                    -i\int_{t'}^{t} ds K^{R}(t,s)*G^{R}(s,t')
+       dmft_%local_green_e%retarded(n,1) = dmft_%local_green_e%retarded(n-1,1) + 0.5d0*parm_%dt*dmft_%local_green_der%retarded(n-1)
+       do l=1, n-1
+        KxG(l)=dmft_%self_energy%retarded(n,l)*dmft_%local_green_e%retarded(l,1)
+       end do
+       dmft_%local_green_der_new%retarded(n) = -xj*parm_%dt*trapezoid_half_edge(KxG,1,n-1)
+       dmft_%local_green_e%retarded(n,1) = dmft_%local_green_e%retarded(n,1) + 0.5d0*parm_%dt*dmft_%local_green_der_new%retarded(n)
+       dmft_%local_green_e%retarded(n,1) = dmft_%local_green_e%retarded(n,1)/(1.d0+0.5d0*xj*parm_%dt*h(n)+0.25d0*xj*parm_%dt**2*dmft_%self_energy%retarded(n,n))
+       dmft_%local_green_der_new%retarded(n) = dmft_%local_green_der_new%retarded(n) -xj*h(n)*dmft_%local_green_e%retarded(n,1) -0.5d0*xj*parm_%dt*dmft_%local_green_e%retarded(n,1)*dmft_%self_energy%retarded(n,n)
+
+    open (unit=7, file='dn', status='old', action='write', position='append')
+    write (7,'(f15.10,f15.10,f15.10,f15.10,f15.10)') t, REAL(dmft_%local_green_e%retarded(n,1)), IMAG(dmft_%local_green_e%retarded(n,1)),real(dmft_%local_green_der_new%retarded(n)),imag(dmft_%local_green_der_new%retarded(n))
+    close (7)
+
+    call deallocate_KB_derivative(dmft_%local_green_der)
+    call allocate_KB_derivative(parm_,dmft_%local_green_der,n)
+    do i=1, n
+       dmft_%local_green_der%retarded(i)=dmft_%local_green_der_new%retarded(i)
+    end do
+       
+    call deallocate_KB_derivative(dmft_%local_green_der_new)
+    call allocate_KB_derivative(parm_,dmft_%local_green_der_new,n+1)
+  end subroutine measure_dn
+
+!////////////////////////////////////
+
+ allocate(KxG(max(parm_%N_tau+1,n)))
+    
+    ! retarded Green function
+    ! d/dt G^{R}(t,t') = -i*delta(t,t')-i*h(t)*G^{R}(t,t')
+    !                    -i\int_{t'}^{t} ds K^{R}(t,s)*G^{R}(s,t')
+    G%retarded(n,n)=-xj
+    G_der_new%retarded(n)=-xj*h(n)*G%retarded(n,n)
+    do j=1, n-1
+       G%retarded(n,j)=G%retarded(n-1,j)+0.5d0*parm_%dt*G_der%retarded(j)
+       do l=j, n-1
+          KxG(l)=K%retarded(n,l)*G%retarded(l,j)
+       end do
+       G_der_new%retarded(j)=-xj*parm_%dt*trapezoid_half_edge(KxG,j,n-1)
+       G%retarded(n,j)=G%retarded(n,j)+0.5d0*parm_%dt*G_der_new%retarded(j)
+       G%retarded(n,j)=G%retarded(n,j)/(1.d0+0.5d0*xj*parm_%dt*h(n)+0.25d0*xj*parm_%dt**2*K%retarded(n,n))
+       G_der_new%retarded(j)=G_der_new%retarded(j)-xj*h(n)*G%retarded(n,j)-0.5d0*xj*parm_%dt*K%retarded(n,n)*G%retarded(n,j)
+    end do
+
+!/////////////////////////////////////////
+
+subroutine initialize_noneq_green(parm_,dmft_)
+    type(parm), intent(in)          :: parm_
+    type(dmft), intent(inout)       :: dmft_
+    integer                         :: i, j, k, n
+    complex(kind(0d0)), allocatable :: SxG(:)
+    
+    n=dmft_%time_step
+    ! initialize G0(t,t') and G(t,t')
+    if (n==2) then
+       dmft_%weiss_green%retarded(1,1)=-xj
+       dmft_%local_green%retarded(1,1)=-xj
+       dmft_%weiss_green_new%retarded(1,1)=-xj
+       do j=1, parm_%N_tau+1
+          dmft_%weiss_green%left_mixing(1,j)=-xj*dmft_%weiss_green%matsubara_t(parm_%N_tau-j+2)
+          dmft_%local_green%left_mixing(1,j)=-xj*dmft_%local_green%matsubara_t(parm_%N_tau-j+2)
+          dmft_%weiss_green_new%left_mixing(1,j)=-xj*dmft_%weiss_green%matsubara_t(parm_%N_tau-j+2)
+       end do
+       dmft_%weiss_green%lesser(1,1)=-xj*dmft_%weiss_green%matsubara_t(parm_%N_tau+1)
+       dmft_%local_green%lesser(1,1)=-xj*dmft_%local_green%matsubara_t(parm_%N_tau+1)
+       dmft_%weiss_green_new%lesser(1,1)=-xj*dmft_%weiss_green%matsubara_t(parm_%N_tau+1)
+       
+       if (parm_%dos=='semicircular') then
+          ! initialize d/dt G0(t,t') = -i*(G*G0)(t,t')
+          dmft_%weiss_green_der%retarded(1)=0.d0

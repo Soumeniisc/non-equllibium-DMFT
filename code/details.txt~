@@ -1,0 +1,11 @@
+src_original_HM_para
+====================
+its contain the original version of the code. only for dn(t) calculation a subroutine measure_dn(parm_,dmft_) and measure_dn2(parm_,dmft_) added in the noneq-dmft.f90 on 04/05/17. where first one is the only calculated retarded part of local_green(t,0) where as seond module calculate  all part  of local_green(t,t') using volterra integral but only reatred part is benchmarked for (t,0). other components of loca green's function at diffent time need to be benchmarked. 
+
+this code giving the result matching with the liturature data almost. In the literature result was given for bold 2 no order IPT but this code is bare 2nd order IPT. even dn(jump in the distribution function) also mathiching with the liturature data.
+
+src_original_IHM_para
+=====================
+its started on 01/04/17
+ it contain code for sudden interaction quench, ramp interaction quench, orbital potetial quench version of the code.
+
